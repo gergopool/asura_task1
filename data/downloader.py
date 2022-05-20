@@ -105,14 +105,14 @@ class DataDownloader:
 
     def _create_data_csv(self, df: pd.DataFrame, save_dir: str) -> None:
         # Filter for those images that indeed exist in the save_dir folder
-        existing_imgs = set([int(x[:-4]) for x in os.listdir(save_dir) if x.endswith('.jpg')])
-        found = df.imageId.isin(existing_imgs)
+        found = df.save_path.apply(lambda x: os.path.isfile(x))
         df = df[found]
+        df['cl'] = df.CategoryId.apply(lambda x: self.class_names[int(x)])
 
         # Create dataframe
         save_df = pd.DataFrame()
-        save_df['img'] = df['imageId'].apply(lambda x: str(x) + '.jpg')
-        save_df['y'] = df['CategoryId'].apply(lambda x: self.class_names[x])
+        save_df['img'] = df.save_path.apply(lambda x: os.path.split(x)[1])
+        save_df['y'] = df['CategoryId'].apply(lambda x: self.class_names[int(x)])
 
         # Save
         save_path = os.path.join(save_dir, 'process_data.csv')
@@ -153,6 +153,7 @@ class ImageDownloader:
     """ Static class, responsible for downloading the images async
     """
 
+    @staticmethod
     def download_by_df(df: pd.DataFrame, max_size: int = 384, n_workers: int = 8) -> None:
         # Attach max_size as new default parameter for the downloader function
         # By doing this, we won't need to add max_size as parameter later
