@@ -1,0 +1,38 @@
+#!/usr/bin/env python
+
+import argparse
+import pandas as pd
+import os
+
+parser = argparse.ArgumentParser(description='Simple settings.')
+parser.add_argument('--folder', type=str, default='resources/images')
+parser.add_argument('--test', type=float, default=0.1)
+parser.add_argument('--val', type=float, default=0.1)
+
+
+def get_splits(df: pd.DataFrame, val_size: float, test_size: float):
+    idx = {}
+    val_size = val_size / (1 - test_size)
+
+    # Extract indices
+    idx['test'] = list(df.groupby('y').sample(frac=test_size).index)
+    remainder = df.index.difference(idx['test'])
+    idx['val'] = list(df.loc[remainder].groupby('y').sample(frac=val_size).index)
+    remainder = df.index.difference(idx['test'] + idx['val'])
+    idx['train'] = list(remainder)
+
+    return idx
+
+
+if __name__ == "__main__":
+
+    args = parser.parse_args()
+    df = pd.read_csv(os.path.join(args.folder, 'process_data.csv'))
+
+    # Choose train/val/test splits
+    indices = get_splits(df, args.val, args.test)
+
+    # Save
+    for split_name, idx in indices.items():
+        save_path = os.path.join(args.folder, split_name + '.csv')
+        df.loc[idx].to_csv(save_path, index=False)

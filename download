@@ -1,0 +1,30 @@
+#!/usr/bin/env python
+
+import argparse
+
+from data import DataDownloader
+
+parser = argparse.ArgumentParser(description='Simple settings.')
+parser.add_argument('--save-dir', type=str, default='resources/images')
+parser.add_argument('--area-threshold', type=float, default=0.1)
+parser.add_argument('--images-csv', type=str, default='resources/images.csv')
+parser.add_argument('--annotations-csv', type=str, default='resources/annotations.csv')
+parser.add_argument('--class-names', type=str, default='resources/class_names.txt')
+parser.add_argument('--max-size', type=int, default=384)
+parser.add_argument('--n-workers', type=int, default=8)
+parser.add_argument('--keep-classes',
+                    type=str,
+                    nargs='+',
+                    default=['car', 'motorcycle', 'bus', 'train', 'truck'])
+
+if __name__ == "__main__":
+
+    args = parser.parse_args()
+
+    data_downloader = DataDownloader(args.images_csv, args.annotations_csv, args.class_names)
+
+    data_downloader(save_dir=args.save_dir,
+                    keep_classes=args.keep_classes,
+                    threshold=args.area_threshold,
+                    max_size=args.max_size,
+                    n_workers=args.n_workers)
