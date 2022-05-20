@@ -44,7 +44,7 @@ class DataDownloader:
         self.img_df[_int_cols] = self.img_df[_int_cols].astype(np.int32)
 
         # Drop unnecessary columns
-        self.anno_df.drop('id', axis=1, inplace=True)
+        self.anno_df.rename(columns={'id': 'box_id'}, inplace=True)
 
     def __call__(self,
                  save_dir: str,
@@ -78,8 +78,11 @@ class DataDownloader:
         # Only keep boxes that have healthy shape and area
         merged_df = BoxValidator.process_bboxes(merged_df, threshold=threshold)
 
+        # Create out path and ensure the output directory exists
+        merged_df['save_path'] = self._create_save_path(merged_df, save_dir)
+
         # Download images async
-        ImageDownloader.download_by_df(save_dir, merged_df, max_size=max_size, n_workers=n_workers)
+        ImageDownloader.download_by_df(merged_df, max_size=max_size, n_workers=n_workers)
 
         # Save new annotation csv for the saved images
         self._create_data_csv(merged_df, save_dir)
@@ -87,6 +90,18 @@ class DataDownloader:
     # ===========================================================================
     # PRIVATE FUNCTIONS
     # ===========================================================================
+
+    def _create_save_path(self, df: pd.DataFrame, save_dir: str) -> pd.Series:
+        df['cl'] = df.CategoryId.apply(lambda x: self.class_names[int(x)])
+        save_path = df.apply(lambda x: os.path.join(save_dir, x.cl, str(x.box_id) + '.jpg'), axis=1)
+
+        # Crate all directories
+        # Note: it's okay to use for loop here since the loop has 5-10 elements only
+        for cl in list(df.cl):
+            os.makedirs(os.path.join(save_dir, cl), exist_ok=True)
+        df.drop('cl', axis=1, inplace=True)
+
+        return save_path
 
     def _create_data_csv(self, df: pd.DataFrame, save_dir: str) -> None:
         # Filter for those images that indeed exist in the save_dir folder
@@ -138,16 +153,7 @@ class ImageDownloader:
     """ Static class, responsible for downloading the images async
     """
 
-    def download_by_df(save_dir: str,
-                       df: pd.DataFrame,
-                       max_size: int = 384,
-                       n_workers: int = 8) -> None:
-        # Ensure the output directory exists
-        os.makedirs(save_dir, exist_ok=True)
-
-        # Create save path for each image id
-        df['save_path'] = df.imageId.apply(lambda x: os.path.join(save_dir, str(x) + '.jpg'))
-
+    def download_by_df(df: pd.DataFrame, max_size: int = 384, n_workers: int = 8) -> None:
         # Attach max_size as new default parameter for the downloader function
         # By doing this, we won't need to add max_size as parameter later
         download_func = partial(ImageDownloader.download_single, max_size=max_size)
