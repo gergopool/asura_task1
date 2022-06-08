@@ -12,7 +12,7 @@ class ImageDataset(torch.utils.data.Dataset):
     def __init__(self, root_folder: str, csv: str, trans: nn.Module):
         super().__init__()
         self.df = pd.read_csv(os.path.join(root_folder, csv))
-        self.df.img = self.df.img.apply(lambda x: os.path.join(root_folder, x))
+        self.df.img = self.df.apply(lambda x: os.path.join(root_folder, x.y, x.img), axis=1)
         self.trans = trans
 
     def __len__(self):
